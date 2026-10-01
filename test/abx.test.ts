@@ -1,10 +1,11 @@
 import { afterAll, describe, expect, test } from "bun:test";
-import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { unzipSync, zipSync } from "fflate";
 import { AmxFilesJson, DevMethods, HOST_PROVIDED_MODULES, Manifest } from "@abuseman/schemas";
 import { run, runDev, type IO } from "../src/index";
+import { lintExtension, mapSource } from "../src/lib/lint";
 
 const work = mkdtempSync(join(tmpdir(), "abx-test-"));
 afterAll(() => rmSync(work, { recursive: true, force: true }));
@@ -142,6 +143,141 @@ describe("lint permission sanity", () => {
     expect(r.code).toBe(1);
     expect(r.stderr.join("\n")).toContain("id: extension id must be reverse-DNS");
     expect(r.stderr.join("\n")).toContain('menu item references undeclared command "nope"');
+  });
+});
+
+describe("lint static scan: false positives", () => {
+  let n = 0;
+  /** A minimal extension on disk: manifest overrides + one source file. */
+  function mk(manifest: Record<string, unknown>, source: string): string {
+    const dir = join(work, `lint-fp-${++n}`);
+    mkdirSync(join(dir, "src"), { recursive: true });
+    writeFileSync(
+      join(dir, "manifest.json"),
+      JSON.stringify({ id: `com.example.fp${n}`, name: "FP", version: "1.0.0", engines: { abuseman: "^1.0.0" }, main: "dist/main.js", permissions: ["ui"], ...manifest }),
+    );
+    writeFileSync(join(dir, "src/index.ts"), source);
+    return dir;
+  }
+  const msgs = (dir: string, level: "error" | "warning") =>
+    lintExtension(dir).issues.filter((i) => i.level === level).map((i) => i.message);
+  const cmds = (...ids: string[]) => ({ contributes: { commands: ids.map((id) => ({ id, title: id })) } });
+
+  describe("command ids", () => {
+    test("template-literal ids in a loop: no error, and no 'never registered' warning", () => {
+      const dir = mk(
+        cmds("x.a", "x.b"),
+        "export default (ctx: any) => { for (const id of ['a', 'b']) ctx.commands.register(`x.${id}`, () => {}); };",
+      );
+      expect(msgs(dir, "error")).toEqual([]);
+      expect(msgs(dir, "warning").filter((m) => m.includes("never registered"))).toEqual([]);
+    });
+
+    test("variables and concatenation count as non-literal too", () => {
+      const dir = mk(
+        cmds("x.a", "x.b"),
+        "export default (ctx: any, id: string) => { ctx.commands.register(id, () => {}); ctx.commands.register('x.' + id, () => {}); };",
+      );
+      expect(msgs(dir, "error")).toEqual([]);
+      expect(msgs(dir, "warning").filter((m) => m.includes("never registered"))).toEqual([]);
+    });
+
+    test("string-literal ids are still checked (undeclared → error, unregistered → warning)", () => {
+      const dir = mk(cmds("x.declared", "x.unused"), "export default (ctx: any) => { ctx.commands.register('x.declared', () => {}); ctx.commands.register(\"x.other\", () => {}); };");
+      expect(msgs(dir, "error")).toEqual(['command "x.other" is registered in code but not declared in contributes.commands']);
+      expect(msgs(dir, "warning")).toContain('command "x.unused" is declared but never registered (static scan)');
+    });
+
+    test("a literal id next to a dynamic one is still validated, but declared ids are not reported missing", () => {
+      const dir = mk(
+        cmds("x.a", "x.b"),
+        "export default (ctx: any) => { ctx.commands.register('x.typo', () => {}); for (const i of [1]) ctx.commands.register(`x.${i}`, () => {}); };",
+      );
+      expect(msgs(dir, "error")).toEqual(['command "x.typo" is registered in code but not declared in contributes.commands']);
+      expect(msgs(dir, "warning").filter((m) => m.includes("never registered"))).toEqual([]);
+    });
+
+    test("registrations in comments and strings are ignored", () => {
+      const dir = mk(cmds("x.a"), "// ctx.commands.register('x.ghost', f)\nconst s = \"ctx.commands.register('x.ghost2', f)\";\nexport default (ctx: any) => ctx.commands.register('x.a', () => {});");
+      expect(msgs(dir, "error")).toEqual([]);
+    });
+
+    test("dynamic view ids silence 'no component registered'", () => {
+      const dir = mk(
+        { contributes: { sidebarSections: [{ id: "v.a", title: "A" }, { id: "v.b", title: "B" }] } },
+        "export default (ctx: any) => { for (const id of ['a', 'b']) ctx.ui.registerView(`v.${id}`, () => null); };",
+      );
+      expect(msgs(dir, "warning").filter((m) => m.includes("no component is registered"))).toEqual([]);
+    });
+  });
+
+  describe("fetch egress warning", () => {
+    const egress = (dir: string) => msgs(dir, "warning").some((m) => m.startsWith("fetch() is used"));
+    test("a real fetch call warns when network is empty", () => {
+      expect(egress(mk({}, "export async function f() { return await fetch('https://a.com'); }"))).toBe(true);
+      expect(egress(mk({}, "export const g = () => Bun.$ && (globalThis as any).net.fetch('https://a.com');"))).toBe(true);
+    });
+    test("not when network is declared", () => {
+      expect(egress(mk({ network: ["a.com"] }, "export async function f() { return fetch('https://a.com'); }"))).toBe(false);
+    });
+    test("fetch( inside strings, templates and comments is ignored (code generators)", () => {
+      const src = [
+        "// fetch('https://a.com')",
+        "/* await fetch(url) */",
+        "export const a = \"fetch(url)\";",
+        "export const b = 'it\\'s fetch(url)';",
+        "export const c = `const r = await fetch(${JSON.stringify('x')});\nfetch('y')`;",
+        "export const d = `outer ${`inner fetch(z)`} fetch(w)`;",
+        "export const e = /fetch\\(/.test('x');",
+      ].join("\n");
+      expect(egress(mk({}, src))).toBe(false);
+    });
+    test("a real call inside a template's ${…} expression still counts", () => {
+      expect(egress(mk({}, "export const a = async () => `${await fetch('https://a.com')}`;"))).toBe(true);
+    });
+    test("code after a string / template containing fetch( is still scanned", () => {
+      expect(egress(mk({}, "const s = `fetch(x)`;\nexport const go = () => fetch('https://a.com');"))).toBe(true);
+    });
+  });
+
+  describe("proxy:modify without flows:read", () => {
+    const warned = (dir: string) => msgs(dir, "warning").some((m) => m.includes('"proxy:modify" without "flows:read"'));
+    test("ctx.rules only: no warning", () => {
+      const dir = mk({ permissions: ["ui", "proxy:modify"] }, "export default async (ctx: any) => { await ctx.rules.create({ name: 'x', match: 'host:a.com', action: { type: 'block' } }); ctx.ui.toast('ok'); };");
+      expect(warned(dir)).toBe(false);
+      expect(msgs(dir, "error")).toEqual([]);
+    });
+    test("rules.list / rules.update / ui.revealFlow are recognised permission usage", () => {
+      const dir = mk({ permissions: ["proxy:modify", "ui"] }, "export default async (ctx: any) => { await ctx.rules.list(); await ctx.rules.update({ id: 'a' }); await ctx.ui.revealFlow('f'); };");
+      expect(msgs(dir, "error")).toEqual([]);
+      expect(msgs(dir, "warning").filter((m) => m.includes("declared but no usage"))).toEqual([]);
+      const noPerm = mk({ permissions: [] }, "export default async (ctx: any) => { await ctx.rules.list(); await ctx.ui.revealFlow('f'); };");
+      expect(msgs(noPerm, "error")).toEqual(['ctx.rules requires the "proxy:modify" permission', 'ctx.ui requires the "ui" permission']);
+    });
+    test("proxy hooks without flows:read: warns", () => {
+      const dir = mk({ permissions: ["ui", "proxy:modify"] }, "export default (ctx: any) => { ctx.proxy.onRequest('host:a.com', (r: any) => r.headers.set('x', '1')); };");
+      expect(warned(dir)).toBe(true);
+    });
+    test("proxy hooks with flows:read: no warning", () => {
+      const dir = mk({ permissions: ["ui", "proxy:modify", "flows:read"] }, "export default (ctx: any) => { ctx.proxy.onRequest('host:a.com', (r: any) => r.headers.set('x', '1')); ctx.ui.toast('x'); };");
+      expect(warned(dir)).toBe(false);
+    });
+  });
+
+  describe("mapSource lexer", () => {
+    const codeOf = (src: string) => {
+      const m = mapSource(src);
+      return [...src].map((c, i) => (m.inCode[i] ? c : " ")).join("");
+    };
+    test("blanks comments, strings, regexes; keeps template expressions", () => {
+      expect(codeOf("a('x') // b\n/* c */ d")).toBe("a(   )     \n        d");
+      expect(codeOf("`a${b(`c`)}d`")).toBe("    b(   )   ");
+      expect(codeOf("x = /a[/]b/g; y")).toBe("x =         ; y");
+      expect(codeOf("a / b / c")).toBe("a / b / c");
+    });
+    test("never throws on unterminated input", () => {
+      for (const src of ["'abc", "`abc ${", "/* open", "x = /re", "`${`${`", "\\"]) expect(() => mapSource(src)).not.toThrow();
+    });
   });
 });
 
