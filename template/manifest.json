@@ -1,0 +1,23 @@
+{
+  "id": "__ID__",
+  "name": "__NAME__",
+  "version": "0.1.0",
+  "description": "An AbuseMan extension.",
+  "author": { "name": "__AUTHOR__" },
+  "icon": "sf:puzzlepiece.extension",
+  "categories": ["tools"],
+  "engines": { "abuseman": "^1.0.0" },
+  "main": "dist/main.js",
+  "permissions": ["flows:read", "proxy:modify", "ui", "tools"],
+  "network": [],
+  "hookTimeoutMs": 50,
+  "activationEvents": ["onStartup"],
+  "contributes": {
+    "commands": [{ "id": "__PREFIX__.showInfo", "title": "Show Flow Info", "icon": "sf:info.circle" }],
+    "menus": {
+      "flow/context": [{ "command": "__PREFIX__.showInfo", "group": "inspect" }]
+    },
+    "inspectorTabs": [{ "id": "__PREFIX__.headers", "title": "__NAME__", "order": 100 }],
+    "tools": [{ "name": "count_headers", "description": "Count the request headers of a flow", "risk": "read" }]
+  }
+}

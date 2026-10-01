@@ -1,0 +1,25 @@
+{
+  "name": "__PKG__",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "abx build",
+    "dev": "abx dev",
+    "lint": "abx lint",
+    "pack": "abx pack",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@abuseman/api": "^1.0.0",
+    "@abuseman/ui": "^1.0.0"
+  },
+  "devDependencies": {
+    "abx": "^1.0.0",
+    "react": "^19.3.0",
+    "zod": "^4.6.5",
+    "@types/react": "^19.3.0",
+    "@types/bun": "^1.4.2",
+    "typescript": "^5.9.0"
+  }
+}
