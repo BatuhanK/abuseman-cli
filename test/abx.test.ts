@@ -123,7 +123,7 @@ describe("lint permission sanity", () => {
     const errors = issues.filter((i) => i.level === "error").map((i) => i.message);
     expect(errors).toEqual(
       expect.arrayContaining([
-        'proxy hooks requires the "flows:read" permission',
+        'proxy hooks requires the "requests:read" permission',
         'modifying hook results requires the "proxy:modify" permission',
         'ctx.storage / useStorage requires the "storage" permission',
         'spawning processes requires the "process:spawn" permission',
@@ -240,26 +240,26 @@ describe("lint static scan: false positives", () => {
     });
   });
 
-  describe("proxy:modify without flows:read", () => {
-    const warned = (dir: string) => msgs(dir, "warning").some((m) => m.includes('"proxy:modify" without "flows:read"'));
+  describe("proxy:modify without requests:read", () => {
+    const warned = (dir: string) => msgs(dir, "warning").some((m) => m.includes('"proxy:modify" without "requests:read"'));
     test("ctx.rules only: no warning", () => {
       const dir = mk({ permissions: ["ui", "proxy:modify"] }, "export default async (ctx: any) => { await ctx.rules.create({ name: 'x', match: 'host:a.com', action: { type: 'block' } }); ctx.ui.toast('ok'); };");
       expect(warned(dir)).toBe(false);
       expect(msgs(dir, "error")).toEqual([]);
     });
-    test("rules.list / rules.update / ui.revealFlow are recognised permission usage", () => {
-      const dir = mk({ permissions: ["proxy:modify", "ui"] }, "export default async (ctx: any) => { await ctx.rules.list(); await ctx.rules.update({ id: 'a' }); await ctx.ui.revealFlow('f'); };");
+    test("rules.list / rules.update / ui.revealRequest are recognised permission usage", () => {
+      const dir = mk({ permissions: ["proxy:modify", "ui"] }, "export default async (ctx: any) => { await ctx.rules.list(); await ctx.rules.update({ id: 'a' }); await ctx.ui.revealRequest('f'); };");
       expect(msgs(dir, "error")).toEqual([]);
       expect(msgs(dir, "warning").filter((m) => m.includes("declared but no usage"))).toEqual([]);
-      const noPerm = mk({ permissions: [] }, "export default async (ctx: any) => { await ctx.rules.list(); await ctx.ui.revealFlow('f'); };");
+      const noPerm = mk({ permissions: [] }, "export default async (ctx: any) => { await ctx.rules.list(); await ctx.ui.revealRequest('f'); };");
       expect(msgs(noPerm, "error")).toEqual(['ctx.rules requires the "proxy:modify" permission', 'ctx.ui requires the "ui" permission']);
     });
-    test("proxy hooks without flows:read: warns", () => {
+    test("proxy hooks without requests:read: warns", () => {
       const dir = mk({ permissions: ["ui", "proxy:modify"] }, "export default (ctx: any) => { ctx.proxy.onRequest('host:a.com', (r: any) => r.headers.set('x', '1')); };");
       expect(warned(dir)).toBe(true);
     });
-    test("proxy hooks with flows:read: no warning", () => {
-      const dir = mk({ permissions: ["ui", "proxy:modify", "flows:read"] }, "export default (ctx: any) => { ctx.proxy.onRequest('host:a.com', (r: any) => r.headers.set('x', '1')); ctx.ui.toast('x'); };");
+    test("proxy hooks with requests:read: no warning", () => {
+      const dir = mk({ permissions: ["ui", "proxy:modify", "requests:read"] }, "export default (ctx: any) => { ctx.proxy.onRequest('host:a.com', (r: any) => r.headers.set('x', '1')); ctx.ui.toast('x'); };");
       expect(warned(dir)).toBe(false);
     });
   });

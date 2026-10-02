@@ -13,7 +13,7 @@ import { color, consoleIO, type IO } from "./lib/io";
 import { CliError } from "./lib/manifest";
 
 export { buildExtension } from "./lib/build";
-export { lintExtension } from "./lib/lint";
+export { lintExtension, lintScript, lintScriptDir, classifyImport } from "./lib/lint";
 export { packExtension, verifyPackage, collectPackageFiles, signFiles } from "./lib/amx";
 export { runDev } from "./commands/dev";
 export { DevClient, defaultDevSocketPath } from "./lib/dev-client";
@@ -23,7 +23,7 @@ export type { IO } from "./lib/io";
 const COMMANDS: Record<string, { run: (argv: string[], io: IO) => Promise<number>; help: string }> = {
   create: { run: create, help: "create <dir> [--id <id>] [--name <name>]   scaffold a new extension" },
   build: { run: build, help: "build [dir] [--dev]                        bundle src/index.ts(x) → dist/main.js" },
-  lint: { run: lint, help: "lint [dir] [--strict] [--json]             validate manifest + permissions" },
+  lint: { run: lint, help: "lint [dir] [--strict] [--json] [--script]  validate manifest + permissions" },
   pack: { run: pack, help: "pack [dir] [--sign <key.pem>] [-o out]     create a deterministic .amx" },
   verify: { run: verifyCmd, help: "verify <file.amx> --pubkey <key>           check hashes + signature" },
   keygen: { run: keygen, help: "keygen <keyId> [--out dir]                 new Ed25519 signing key" },
