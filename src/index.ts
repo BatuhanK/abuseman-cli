@@ -11,6 +11,7 @@ import { publish } from "./commands/publish";
 import { verifyCmd } from "./commands/verify";
 import { color, consoleIO, type IO } from "./lib/io";
 import { CliError } from "./lib/manifest";
+import pkg from "../package.json" with { type: "json" };
 
 export { buildExtension } from "./lib/build";
 export { lintExtension, lintScript, lintScriptDir, classifyImport } from "./lib/lint";
@@ -21,7 +22,7 @@ export { resolveToken } from "./commands/publish";
 export type { IO } from "./lib/io";
 
 const COMMANDS: Record<string, { run: (argv: string[], io: IO) => Promise<number>; help: string }> = {
-  create: { run: create, help: "create <dir> [--id <id>] [--name <name>]   scaffold a new extension" },
+  create: { run: create, help: "create <dir> [--id <id>] [--name <name>] [--sdk local|npm]\n                                                 scaffold a new extension (local SDK tarballs by default)" },
   build: { run: build, help: "build [dir] [--dev]                        bundle src/index.ts(x) → dist/main.js" },
   lint: { run: lint, help: "lint [dir] [--strict] [--json] [--script]  validate manifest + permissions" },
   pack: { run: pack, help: "pack [dir] [--sign <key.pem>] [-o out]     create a deterministic .amx" },
@@ -34,6 +35,8 @@ const COMMANDS: Record<string, { run: (argv: string[], io: IO) => Promise<number
 function usage(io: IO) {
   io.out("abx — AbuseMan extension CLI\n\nUsage: abx <command> [options]\n");
   for (const c of Object.values(COMMANDS)) io.out(`  abx ${c.help}`);
+  io.out("\n  abx --version | --help");
+  io.out("\n`abx dev` needs AbuseMan running with Settings › Extensions › Developer mode turned on.");
 }
 
 /** Run the CLI; returns the exit code. */
@@ -44,7 +47,7 @@ export async function run(argv: string[], io: IO = consoleIO): Promise<number> {
     return cmd ? 0 : 2;
   }
   if (cmd === "--version" || cmd === "-v") {
-    io.out("1.0.0");
+    io.out(pkg.version);
     return 0;
   }
   const c = COMMANDS[cmd];

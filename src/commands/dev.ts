@@ -50,7 +50,7 @@ export async function runDev(opts: DevOptions): Promise<void> {
       if (client?.closed !== false || /ENOENT|ECONNREFUSED|closed|connect/i.test(msg)) {
         client = undefined;
         if (!warnedOffline) {
-          io.err(color.yellow(`AbuseMan dev socket unavailable (${socketPath}): is the app running with Developer Mode on? Will retry after the next build.`));
+          io.err(color.yellow(`AbuseMan dev socket unavailable (${socketPath}): start AbuseMan and turn on Settings › Extensions › Developer mode. Retrying after the next build.`));
           warnedOffline = true;
         }
       } else io.err(color.red(`app rejected the extension: ${msg}`));

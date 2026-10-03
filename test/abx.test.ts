@@ -35,7 +35,14 @@ describe("create → build → lint → pack → verify", () => {
     expect(m.id).toBe("com.example.my-ext");
     expect(m.contributes?.commands?.[0]?.id).toBe("my_ext.showInfo");
     const pkg = JSON.parse(readFileSync(join(ext, "package.json"), "utf8"));
-    expect(pkg.dependencies).toEqual({ "@abuseman/api": "^1.0.0", "@abuseman/ui": "^1.0.0" });
+    // --sdk local (default): file: deps on the SDK tarballs vendored into .abuseman/sdk/
+    expect(Object.keys(pkg.dependencies).sort()).toEqual(["@abuseman/api", "@abuseman/schemas", "@abuseman/ui"]);
+    for (const spec of Object.values(pkg.dependencies) as string[]) {
+      expect(spec).toStartWith("file:./.abuseman/sdk/");
+      expect(existsSync(join(ext, spec.slice("file:".length)))).toBe(true);
+    }
+    expect(pkg.devDependencies.abx).toBeUndefined();
+    expect(existsSync(join(ext, "AGENTS.md"))).toBe(true);
     expect(readFileSync(join(ext, "src/index.tsx"), "utf8")).toContain('ctx.commands.register("my_ext.showInfo"');
     expect((await abx("create", ext)).code).toBe(1); // not empty
   });

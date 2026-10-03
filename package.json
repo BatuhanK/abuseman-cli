@@ -5,24 +5,22 @@
   "type": "module",
   "license": "UNLICENSED",
   "bin": {
-    "abx": "./src/cli.ts",
-    "create-abuseman-extension": "./src/create-bin.ts"
+    "abx": "./bin/abx.js",
+    "create-abuseman-extension": "./bin/create-abuseman-extension.js"
   },
   "exports": {
-    ".": { "types": "./src/index.ts", "bun": "./src/index.ts" }
+    ".": { "types": "./src/index.ts", "bun": "./src/index.ts", "default": "./dist/index.js" }
   },
-  "files": ["src", "template", "dist"],
+  "files": ["bin", "dist", "template", "sdk"],
   "scripts": {
     "build": "bun run scripts/build.ts",
     "test": "bun test",
     "typecheck": "tsc --noEmit -p tsconfig.json"
   },
-  "dependencies": {
-    "@abuseman/schemas": "workspace:*",
-    "fflate": "^0.8.3"
-  },
   "devDependencies": {
+    "@abuseman/schemas": "workspace:*",
     "@types/bun": "^1.4.2",
+    "fflate": "^0.8.3",
     "typescript": "^5.9.0"
   }
 }
