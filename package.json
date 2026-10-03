@@ -1,6 +1,6 @@
 {
   "name": "abx",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "AbuseMan extension CLI: create, build, lint, pack, verify, keygen, dev, publish",
   "type": "module",
   "license": "MIT",
