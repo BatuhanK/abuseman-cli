@@ -124,9 +124,13 @@ your own).
     `hookTimeoutMs`; otherwise the request continues unchanged.
 - **Requests** — `ctx.requests.query({filter, limit ≤ 500, offset, sort})` → `{requests, total}`,
   `get(id)` → `CapturedRequest`, `getBody(id, "request"|"response", {offset, length, decode, encoding})`,
-  `getBodyText(id, which)`, `tag(ids, {add, remove})`, `annotate(id, note)`, `replay(id, patch?)` → new id.
-- **Send** — `ctx.http.send({method, url, headers, body})` → id of the captured request (goes through
-  the proxy and appears in the request list). `ctx.net.fetch` is direct egress, limited to `network`.
+  `getBodyText(id, which)`, `tag(ids, {add, remove})`, `annotate(id, note)`, `replay(id, patch?, {fingerprint?})` → new id.
+- **Send** — `ctx.http.send({method, url, headers, body, fingerprint})` → id of the captured request
+  (goes through the proxy and appears in the request list). `fingerprint` (also on `replay`) picks the
+  TLS + HTTP/2 fingerprint: `"auto"` (default — the ClientHello a client last sent to that host),
+  `"chrome"`, `"firefox"`, `"safari"`, `"edge"`, `"ios"`, `"android"`, a pinned version like
+  `"chrome-133"`, or `"abuseman"`. `ctx.net.fetch` is direct egress, limited to `network`, and always
+  uses Bun's own TLS.
 - **Rules** — `ctx.rules.create({name, match, action, phase?, enabled?, priority?})`, `update`,
   `delete`, `list` (own rules only). Actions: `mock`, `mapLocal`, `mapRemote`, `setHeaders`,
   `rewriteBody`, `delay`, `throttle`, `block`, `breakpoint` (see `RuleAction` in `@abuseman/schemas`).
