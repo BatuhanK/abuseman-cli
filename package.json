@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "description": "AbuseMan extension CLI: create, build, lint, pack, verify, keygen, dev, publish",
   "type": "module",
-  "license": "UNLICENSED",
+  "license": "MIT",
   "bin": {
     "abx": "./bin/abx.js",
     "create-abuseman-extension": "./bin/create-abuseman-extension.js"

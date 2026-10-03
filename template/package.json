@@ -15,7 +15,7 @@
     "@abuseman/ui": "^1.0.0"
   },
   "devDependencies": {
-    "abx": "^1.0.0",
+    "abuseman-cli": "^__ABX_VERSION__",
     "react": "^19.3.0",
     "zod": "^4.6.5",
     "@types/react": "^19.3.0",

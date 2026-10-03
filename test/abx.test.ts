@@ -6,6 +6,7 @@ import { unzipSync, zipSync } from "fflate";
 import { AmxFilesJson, DevMethods, HOST_PROVIDED_MODULES, Manifest } from "@abuseman/schemas";
 import { run, runDev, type IO } from "../src/index";
 import { lintExtension, mapSource } from "../src/lib/lint";
+import abxPkg from "../package.json" with { type: "json" };
 
 const work = mkdtempSync(join(tmpdir(), "abx-test-"));
 afterAll(() => rmSync(work, { recursive: true, force: true }));
@@ -41,7 +42,7 @@ describe("create → build → lint → pack → verify", () => {
       expect(spec).toStartWith("file:./.abuseman/sdk/");
       expect(existsSync(join(ext, spec.slice("file:".length)))).toBe(true);
     }
-    expect(pkg.devDependencies.abx).toBeUndefined();
+    expect(pkg.devDependencies["abuseman-cli"]).toBe(`^${abxPkg.version}`);
     expect(existsSync(join(ext, "AGENTS.md"))).toBe(true);
     expect(readFileSync(join(ext, "src/index.tsx"), "utf8")).toContain('ctx.commands.register("my_ext.showInfo"');
     expect((await abx("create", ext)).code).toBe(1); // not empty

@@ -4,8 +4,8 @@ An [AbuseMan](https://abuseman.abuse.ltd) extension.
 
 ## Develop
 
-Requirements: [Bun](https://bun.sh) 1.4+, the `abx` CLI on your `PATH` (from an AbuseMan checkout:
-`make abx-install`), and AbuseMan running with **Settings › Extensions › Developer mode** on.
+Requirements: [Bun](https://bun.sh) 1.4+ and AbuseMan running with **Settings › Extensions ›
+Developer mode** on. The `abx` CLI comes with `bun install` (the `abuseman-cli` dev dependency).
 
 ```sh
 bun install

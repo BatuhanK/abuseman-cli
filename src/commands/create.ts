@@ -5,6 +5,7 @@ import { EXTENSION_ID_RE } from "@abuseman/schemas";
 import type { IO } from "../lib/io";
 import { CliError } from "../lib/manifest";
 import { vendorSdk } from "../lib/sdk";
+import pkg from "../../package.json" with { type: "json" };
 
 /** Template folder: `<pkg>/template` (works from `src/commands/` and from the bundled `dist/`). */
 export const TEMPLATE_DIR =
@@ -29,9 +30,9 @@ function slug(s: string): string {
 }
 
 /**
- * `--sdk npm`: the template's registry versions (once `@abuseman/*` and `abx` are published).
+ * `--sdk npm`: the template's registry versions (once `@abuseman/*` are published).
  * `--sdk local` (default while unpublished): vendor the SDK tarballs into `.abuseman/sdk/` and depend
- * on them with `file:` specifiers; `abx` itself comes from the global install (`make abx-install`).
+ * on them with `file:` specifiers. Either way the CLI itself (`abuseman-cli`, bins `abx`) comes from npm.
  */
 function useLocalSdk(dir: string): string[] {
   const index = vendorSdk(join(dir, LOCAL_SDK_DIR));
@@ -40,7 +41,6 @@ function useLocalSdk(dir: string): string[] {
   const deps: Record<string, string> = {};
   for (const [name, tgz] of Object.entries(index.packages)) deps[name] = `file:./${LOCAL_SDK_DIR}/${tgz}`;
   pkg.dependencies = deps;
-  delete pkg.devDependencies?.abx;
   writeFileSync(pkgPath, `${JSON.stringify(pkg, null, 2)}\n`);
   return Object.values(index.packages).map((f) => `${LOCAL_SDK_DIR}/${f}`);
 }
@@ -73,6 +73,7 @@ export async function create(argv: string[], io: IO): Promise<number> {
     __AUTHOR__: values.author ?? process.env.USER ?? "Me",
     __PREFIX__: prefix,
     __PKG__: base,
+    __ABX_VERSION__: pkg.version,
   };
   const written: string[] = [];
   const copy = (from: string, to: string) => {

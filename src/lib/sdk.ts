@@ -28,11 +28,18 @@ export interface SdkIndex {
   packages: Record<SdkName, string>;
 }
 
+/**
+ * npm name of this CLI (`abx` is taken on npm). The workspace package and the bins are `abx`;
+ * `scripts/build.ts` stages the published package under this name.
+ */
+export const CLI_PACKAGE_NAME = "abuseman-cli";
+
 /** Root of the `abx` package (`<root>/package.json`), from `src/lib/` and from the bundled `dist/`. */
 export const ABX_ROOT =
   [join(import.meta.dir, "../.."), join(import.meta.dir, "..")].find((p) => {
     try {
-      return (JSON.parse(readFileSync(join(p, "package.json"), "utf8")) as { name?: string }).name === "abx";
+      const name = (JSON.parse(readFileSync(join(p, "package.json"), "utf8")) as { name?: string }).name;
+      return name === "abx" || name === CLI_PACKAGE_NAME;
     } catch {
       return false;
     }
@@ -110,7 +117,7 @@ export function vendorSdk(destDir: string): SdkIndex {
   if (repo) return packSdk(repo, destDir); // checkout: always current sources
   const bundled = join(ABX_ROOT, "sdk");
   if (!existsSync(join(bundled, "sdk.json"))) {
-    throw new CliError(`this abx has no bundled SDK (${bundled}); reinstall it with \`make abx-install\` or use --sdk npm`);
+    throw new CliError(`this abx has no bundled SDK (${bundled}); reinstall ${CLI_PACKAGE_NAME} or use --sdk npm`);
   }
   const index = JSON.parse(readFileSync(join(bundled, "sdk.json"), "utf8")) as SdkIndex;
   mkdirSync(destDir, { recursive: true });
